@@ -11,3 +11,19 @@ As an example, there is a bio-informatic container with image `quay.io/milaborat
 - `RequestDeduplicator` deduplicates user requests and pass an input for a calculation to a `Qual` one by one;
 - `Qual` is a container that starts and initializes `quay` docker container, pass calculations to it and stops it after the last request and the given time.
 
+## Testing
+- `make test`
+- `make container_scheduler`
+- `make lint`
+- `go run ./cmd/main.go -port 9002`
+
+```bash
+go run ./cmd/main.go -port 9002 2>&1
+curl 0.0.0.0:9002/calculate/1234/3 -v
+curl 0.0.0.0:9002/calculate/1234/3 -v # check that cache works
+```
+
+## TODO
+- add hard limits and eviction strategy for a cache.
+- if we need metrics, we can add Requests, Errors, Durations in `/internal/api/calculate.go`.
+- add limit of maximum containers count in `containersmap`

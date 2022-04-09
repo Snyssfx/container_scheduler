@@ -20,7 +20,6 @@ type ContainersMap struct {
 	mu                 sync.Mutex
 	seedToDeduplicator map[int]RequestDeduplicator
 	// TODO: add limit of maximum containers count
-	// TODO: add a function that is a fabric of deduplicators. It is needed for dependency inversion.
 }
 
 type deduplicatorFabric func(l *zap.SugaredLogger, seed int) (RequestDeduplicator, error)

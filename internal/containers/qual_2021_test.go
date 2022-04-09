@@ -64,6 +64,8 @@ func TestQual_stopAfter(t *testing.T) {
 		lastCalculation: time.Now().Add(-1 * time.Second),
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancelFn := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancelFn()
+
 	q.stopAfter(ctx, 1*time.Microsecond)
 }
