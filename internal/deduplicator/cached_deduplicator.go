@@ -1,3 +1,5 @@
+//go:generate minimock -i requestDeduplicator -o ./mock/ -s ".go" -g
+
 package deduplicator
 
 import (
@@ -12,11 +14,16 @@ import (
 // It caches all results from a RequestDeduplicator.
 type CachedDeduplicator struct {
 	l *zap.SugaredLogger
-	d *RequestDeduplicator
+	d requestDeduplicator
 
-	// TODO: add hard limits and eviction for a cache.
+	// TODO: add hard limits and eviction strategy for a cache.
 	mu            sync.RWMutex
 	inputToResult map[int]int
+}
+
+type requestDeduplicator interface {
+	Calculate(ctx context.Context, input int) (int, error)
+	Close() error
 }
 
 // NewCachedDeduplicator creates CachedDeduplicator.
@@ -25,8 +32,6 @@ func NewCachedDeduplicator(l *zap.SugaredLogger, seed int) (*CachedDeduplicator,
 	if err != nil {
 		return nil, fmt.Errorf("cannot create deduplicator: %w", err)
 	}
-
-	go d.Start()
 
 	return &CachedDeduplicator{
 		l: l, d: d,

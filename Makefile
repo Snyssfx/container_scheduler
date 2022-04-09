@@ -5,7 +5,7 @@ all: lint test container_scheduler
 
 .PHONY: test
 test: generate
-	go test -race -timeout 180s ./...
+	go test -race -timeout 10s -count 1 ./...
 
 .PHONY: generate
 generate:

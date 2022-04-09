@@ -1,4 +1,4 @@
-//go:generate minimock -i requestDeduplicator -o ./mock/ -s ".go" -g
+//go:generate minimock -i RequestDeduplicator -o ./mock/ -s ".go" -g
 
 package containersmap
 
@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Snyssfx/container_scheduler/internal/deduplicator"
 	"go.uber.org/zap"
 )
 
@@ -15,25 +14,29 @@ import (
 // Containers are called deduplicators because they hold the logic to
 // deduplicate several user requests into one calculation.
 type ContainersMap struct {
-	l *zap.SugaredLogger
+	l                  *zap.SugaredLogger
+	deduplicatorFabric deduplicatorFabric
 
-	mu                 sync.RWMutex
-	seedToDeduplicator map[int]requestDeduplicator
+	mu                 sync.Mutex
+	seedToDeduplicator map[int]RequestDeduplicator
 	// TODO: add limit of maximum containers count
 	// TODO: add a function that is a fabric of deduplicators. It is needed for dependency inversion.
 }
 
-type requestDeduplicator interface {
+type deduplicatorFabric func(l *zap.SugaredLogger, seed int) (RequestDeduplicator, error)
+
+type RequestDeduplicator interface {
 	Calculate(ctx context.Context, input int) (int, error)
 	Close() error
 }
 
 // New creates new ContainersMap
-func New(logger *zap.SugaredLogger) *ContainersMap {
+func New(logger *zap.SugaredLogger, deduplicatorFabric deduplicatorFabric) *ContainersMap {
 	return &ContainersMap{
 		l:                  logger,
-		mu:                 sync.RWMutex{},
-		seedToDeduplicator: make(map[int]requestDeduplicator),
+		mu:                 sync.Mutex{},
+		deduplicatorFabric: deduplicatorFabric,
+		seedToDeduplicator: make(map[int]RequestDeduplicator),
 	}
 }
 
@@ -63,17 +66,14 @@ func (c *ContainersMap) Calculate(ctx context.Context, seed, input int) (int, er
 	return d.Calculate(ctx, input)
 }
 
-func (c *ContainersMap) getOrCreateDeduplicator(seed int) (requestDeduplicator, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+func (c *ContainersMap) getOrCreateDeduplicator(seed int) (RequestDeduplicator, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	var d requestDeduplicator
-	var ok bool
 	var err error
-
-	d, ok = c.seedToDeduplicator[seed]
+	d, ok := c.seedToDeduplicator[seed]
 	if !ok {
-		d, err = deduplicator.NewCachedDeduplicator(c.l.Named("cached"), seed)
+		d, err = c.deduplicatorFabric(c.l, seed)
 		if err != nil {
 			return nil, fmt.Errorf("cannot create cached deduplicator: %w", err)
 		}

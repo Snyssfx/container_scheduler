@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/Snyssfx/container_scheduler/internal/containers"
 	"go.uber.org/atomic"
@@ -19,11 +18,13 @@ type RequestDeduplicator struct {
 	l           *zap.SugaredLogger
 	seed        int
 	container   container
-	reqID       atomic.Int64
+	reqID       *atomic.Int64
 	closeCtx    context.Context
 	closeLoopFn context.CancelFunc
 
-	mu                  sync.RWMutex
+	signalOfNewSub chan bool
+
+	mu                  sync.Mutex
 	inputToSubsriptions map[int]map[int]*subscription
 	curInput            int
 	cancelCurCalcFn     context.CancelFunc
@@ -43,28 +44,39 @@ func NewRequestDeduplicator(l *zap.SugaredLogger, seed int) (*RequestDeduplicato
 
 	ctx, closer := context.WithCancel(context.Background())
 
-	return &RequestDeduplicator{
+	d := &RequestDeduplicator{
 		l:           l,
 		seed:        seed,
 		container:   q,
-		reqID:       *atomic.NewInt64(0),
+		reqID:       atomic.NewInt64(0),
 		closeCtx:    ctx,
 		closeLoopFn: closer,
 
-		mu:                  sync.RWMutex{},
+		signalOfNewSub: make(chan bool, 1),
+
+		mu:                  sync.Mutex{},
 		inputToSubsriptions: make(map[int]map[int]*subscription),
-	}, nil
+	}
+
+	go d.Start()
+
+	return d, nil
 }
 
 // Calculate subscribe user to a calculation, and wait for result.
 func (r *RequestDeduplicator) Calculate(ctx context.Context, input int) (int, error) {
 	reqID := r.reqID.Inc()
 	sub := r.subscribe(input, int(reqID))
+	defer r.unsubscribe(input, int(reqID))
+
+	select {
+	case r.signalOfNewSub <- true:
+	default: // a signal from another sub has already been sent.
+	}
 
 	select {
 
 	case <-ctx.Done():
-		r.unsubscribe(input, int(reqID))
 		return 0, fmt.Errorf("request was canceled: %d, %d", input, reqID)
 
 	case res, opened := <-sub.resultCh:
@@ -78,24 +90,23 @@ func (r *RequestDeduplicator) Calculate(ctx context.Context, input int) (int, er
 // Start is an infinite loop when deduplicator choose next input for calculation,
 // sends it to the container and publish results.
 func (r *RequestDeduplicator) Start() {
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-
 	for {
 		select {
 		case <-r.closeCtx.Done():
 			return
-		case <-ticker.C:
-			input, result, inputValid, err := r.calculateNextInput()
-			if err != nil {
-				if inputValid {
-					r.l.Errorf("cannot calculate: %s", err.Error())
-					r.unsubscribeAll(input)
+		case <-r.signalOfNewSub:
+			for {
+				input, result, inputValid, err := r.calculateNextInput()
+				if err != nil {
+					if inputValid {
+						r.l.Errorf("cannot calculate: %s", err.Error())
+						r.unsubscribeAll(input)
+					}
+					break
 				}
-				continue
-			}
 
-			r.publish(input, result)
+				r.publish(input, result)
+			}
 		}
 	}
 }
@@ -167,7 +178,7 @@ type subscription struct {
 
 func newSubscription() *subscription {
 	return &subscription{
-		resultCh: make(chan int),
+		resultCh: make(chan int, 1),
 	}
 }
 
@@ -191,7 +202,11 @@ func (r *RequestDeduplicator) unsubscribe(input, reqID int) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.inputToSubsriptions[input][reqID].close()
+	sub := r.inputToSubsriptions[input][reqID]
+	if sub != nil {
+		sub.close()
+	}
+
 	delete(r.inputToSubsriptions[input], reqID)
 
 	if len(r.inputToSubsriptions[input]) == 0 {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/Snyssfx/container_scheduler/internal/api"
 	"github.com/Snyssfx/container_scheduler/internal/containersmap"
+	"github.com/Snyssfx/container_scheduler/internal/deduplicator"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -41,7 +42,11 @@ func main() {
 		),
 	).Sugar()
 
-	cm := containersmap.New(log.Named("cm"))
+	deduplicatorFabricFn := func(l *zap.SugaredLogger, seed int) (containersmap.RequestDeduplicator, error) {
+		return deduplicator.NewCachedDeduplicator(l.Named("cached"), seed)
+	}
+
+	cm := containersmap.New(log.Named("cm"), deduplicatorFabricFn)
 	defer func() {
 		errClose := cm.Close()
 		if errClose != nil {

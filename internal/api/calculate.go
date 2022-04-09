@@ -9,6 +9,8 @@ import (
 
 // calculateHandler parses user input and gets a result from containersMap.
 func (s *Server) calculateHandler(w http.ResponseWriter, r *http.Request) {
+	// TODO: if we need metrics, we can add Requests, Errors, Durations here.
+
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return

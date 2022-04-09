@@ -1,3 +1,6 @@
+//go:generate minimock -i container -o ./mock/ -s ".go" -g
+//go:generate minimock -i client -o ./mock/ -s ".go" -g
+
 package containers
 
 import (
@@ -13,20 +16,13 @@ import (
 	"go.uber.org/zap"
 )
 
-// Qual is a container that start docker container for a qualification,
-// wait for initialization, send calculations to it and stops it after the
-// given time.
-type Qual struct {
-	l       *zap.SugaredLogger
-	d       *docker
-	port    int
-	client  *http.Client
-	closeFn context.CancelFunc
-
-	stateMu         sync.Mutex
-	state           state
-	lastCalculation time.Time
-}
+const (
+	initializationTimeout = 130 * time.Second
+	imageName             = "quay.io/milaboratory/qual-2021-devops-server"
+	imageTag              = "latest"
+	calculationTimeout    = 130 * time.Second
+	stopAfterTimeout      = 120 * time.Second
+)
 
 type state int
 
@@ -36,6 +32,32 @@ const (
 	stoppedState
 )
 
+// Qual is a container that start docker container for a qualification,
+// wait for initialization, send calculations to it and stops it after the
+// given time.
+type Qual struct {
+	l       *zap.SugaredLogger
+	d       container
+	port    int
+	name    string
+	client  client
+	closeFn context.CancelFunc
+
+	stateMu         sync.Mutex
+	state           state
+	lastCalculation time.Time
+}
+
+type container interface {
+	Run() error
+	Stop() error
+}
+
+type client interface {
+	Do(*http.Request) (*http.Response, error)
+	Get(url string) (*http.Response, error)
+}
+
 // NewQual creates new Qual.
 func NewQual(l *zap.SugaredLogger, seed int) (*Qual, error) {
 	port, err := getFreePort()
@@ -44,19 +66,19 @@ func NewQual(l *zap.SugaredLogger, seed int) (*Qual, error) {
 	}
 
 	name := fmt.Sprintf("qual_%d_seed_%d", port, seed)
-	stopAfter := 120 * time.Second
 	ctx, cancelFn := context.WithCancel(context.Background())
 
 	q := &Qual{
 		l: l,
 		d: newDocker(
 			l.Named("d"),
-			"quay.io/milaboratory/qual-2021-devops-server", "latest",
+			imageName, imageTag,
 			port,
 			name,
 			[][]string{{"SEED", strconv.Itoa(seed)}},
 		),
-		client:  &http.Client{Timeout: 130 * time.Second},
+		name:    name,
+		client:  &http.Client{Timeout: calculationTimeout},
 		port:    port,
 		closeFn: cancelFn,
 
@@ -64,7 +86,7 @@ func NewQual(l *zap.SugaredLogger, seed int) (*Qual, error) {
 		state:   initState,
 	}
 
-	go q.stopAfter(ctx, stopAfter)
+	go q.stopAfter(ctx, stopAfterTimeout)
 
 	return q, nil
 }
@@ -129,16 +151,16 @@ func (q *Qual) Calculate(ctx context.Context, input int) (int, error) {
 
 // Close closes underlying Docker container and stops the lifecycle loop.
 func (q *Qual) Close() error {
-	q.l.Debugf("try to stop %s", q.d.name)
+	q.l.Debugf("try to stop %s", q.name)
 
 	q.closeFn()
 
-	err := q.d.stop()
+	err := q.d.Stop()
 	if err != nil {
 		return fmt.Errorf("cannot stop docker container: %w", err)
 	}
 
-	q.l.Infof("qual %s closed", q.d.name)
+	q.l.Infof("qual %s closed", q.name)
 	return nil
 }
 
@@ -146,7 +168,7 @@ func (q *Qual) Close() error {
 func (q *Qual) start() error {
 	q.lastCalculation = time.Now()
 
-	err := q.d.run()
+	err := q.d.Run()
 	if err != nil {
 		return fmt.Errorf("cannot run docker container: %w", err)
 	}
@@ -159,16 +181,16 @@ func (q *Qual) start() error {
 		case <-ticker.C:
 			resp, err := q.client.Get(fmt.Sprintf("http://127.0.0.1:%d/health", q.port))
 			if err != nil {
-				q.l.Debugf("%s: /health: %s", q.d.name, err.Error())
+				q.l.Debugf("%s: /health: %s", q.name, err.Error())
 				break
 			}
 
 			if resp.StatusCode == 200 {
-				q.l.Debugf("%s was initialized.", q.d.name)
+				q.l.Debugf("%s was initialized.", q.name)
 				return nil
 			}
 
-		case <-time.After(130 * time.Second):
+		case <-time.After(initializationTimeout):
 			return fmt.Errorf("container was intializing for too long")
 		}
 	}
@@ -176,27 +198,29 @@ func (q *Qual) start() error {
 
 // stopAfter waits given time after last calculation and stops the container.
 func (q *Qual) stopAfter(ctx context.Context, after time.Duration) {
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			if time.Since(q.lastCalculation) > after {
-				q.stateMu.Lock()
-				if q.state == readyState {
-					q.l.Debugf("try to stop in loop %s", q.d.name)
-					err := q.d.stop()
-					if err != nil {
-						q.stateMu.Unlock()
-						q.l.Errorf("cannot stop the container: %s", err.Error())
-						continue
-					}
-				}
-
-				q.state = stoppedState
-				q.stateMu.Unlock()
+			if time.Since(q.lastCalculation) <= after {
+				continue
 			}
+
+			q.stateMu.Lock()
+			if q.state == readyState {
+				q.l.Debugf("try to stop in loop %s", q.name)
+				err := q.d.Stop()
+				if err != nil {
+					q.stateMu.Unlock()
+					q.l.Errorf("cannot stop the container: %s", err.Error())
+					continue
+				}
+			}
+
+			q.state = stoppedState
+			q.stateMu.Unlock()
 
 		case <-ctx.Done():
 			return

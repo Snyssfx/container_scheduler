@@ -35,8 +35,8 @@ func newDocker(
 	}
 }
 
-// run creates and starts the docker container.
-func (d *docker) run() error {
+// Run creates and starts the docker container.
+func (d *docker) Run() error {
 	err := runCmd(d.getRunString())
 	if err != nil {
 		return fmt.Errorf("cannot run docker container: %w", err)
@@ -58,8 +58,8 @@ func (d *docker) getRunString() string {
 		d.port, environs, d.name, d.imageName, d.imageTag)
 }
 
-// stop stops the container and remove it.
-func (d *docker) stop() error {
+// Stop stops the container and remove it.
+func (d *docker) Stop() error {
 	err := runCmd(fmt.Sprintf("stop %s", d.name))
 	if err != nil {
 		return fmt.Errorf("cannot stop docker container %q: %w", d.name, err)

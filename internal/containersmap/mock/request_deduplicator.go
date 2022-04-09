@@ -11,7 +11,7 @@ import (
 	"github.com/gojuno/minimock/v3"
 )
 
-// RequestDeduplicatorMock implements containersmap.requestDeduplicator
+// RequestDeduplicatorMock implements containersmap.RequestDeduplicator
 type RequestDeduplicatorMock struct {
 	t minimock.Tester
 
@@ -28,7 +28,7 @@ type RequestDeduplicatorMock struct {
 	CloseMock          mRequestDeduplicatorMockClose
 }
 
-// NewRequestDeduplicatorMock returns a mock for containersmap.requestDeduplicator
+// NewRequestDeduplicatorMock returns a mock for containersmap.RequestDeduplicator
 func NewRequestDeduplicatorMock(t minimock.Tester) *RequestDeduplicatorMock {
 	m := &RequestDeduplicatorMock{t: t}
 	if controller, ok := t.(minimock.MockController); ok {
@@ -52,7 +52,7 @@ type mRequestDeduplicatorMockCalculate struct {
 	mutex    sync.RWMutex
 }
 
-// RequestDeduplicatorMockCalculateExpectation specifies expectation struct of the requestDeduplicator.Calculate
+// RequestDeduplicatorMockCalculateExpectation specifies expectation struct of the RequestDeduplicator.Calculate
 type RequestDeduplicatorMockCalculateExpectation struct {
 	mock    *RequestDeduplicatorMock
 	params  *RequestDeduplicatorMockCalculateParams
@@ -60,19 +60,19 @@ type RequestDeduplicatorMockCalculateExpectation struct {
 	Counter uint64
 }
 
-// RequestDeduplicatorMockCalculateParams contains parameters of the requestDeduplicator.Calculate
+// RequestDeduplicatorMockCalculateParams contains parameters of the RequestDeduplicator.Calculate
 type RequestDeduplicatorMockCalculateParams struct {
 	ctx   context.Context
 	input int
 }
 
-// RequestDeduplicatorMockCalculateResults contains results of the requestDeduplicator.Calculate
+// RequestDeduplicatorMockCalculateResults contains results of the RequestDeduplicator.Calculate
 type RequestDeduplicatorMockCalculateResults struct {
 	i1  int
 	err error
 }
 
-// Expect sets up expected params for requestDeduplicator.Calculate
+// Expect sets up expected params for RequestDeduplicator.Calculate
 func (mmCalculate *mRequestDeduplicatorMockCalculate) Expect(ctx context.Context, input int) *mRequestDeduplicatorMockCalculate {
 	if mmCalculate.mock.funcCalculate != nil {
 		mmCalculate.mock.t.Fatalf("RequestDeduplicatorMock.Calculate mock is already set by Set")
@@ -92,7 +92,7 @@ func (mmCalculate *mRequestDeduplicatorMockCalculate) Expect(ctx context.Context
 	return mmCalculate
 }
 
-// Inspect accepts an inspector function that has same arguments as the requestDeduplicator.Calculate
+// Inspect accepts an inspector function that has same arguments as the RequestDeduplicator.Calculate
 func (mmCalculate *mRequestDeduplicatorMockCalculate) Inspect(f func(ctx context.Context, input int)) *mRequestDeduplicatorMockCalculate {
 	if mmCalculate.mock.inspectFuncCalculate != nil {
 		mmCalculate.mock.t.Fatalf("Inspect function is already set for RequestDeduplicatorMock.Calculate")
@@ -103,7 +103,7 @@ func (mmCalculate *mRequestDeduplicatorMockCalculate) Inspect(f func(ctx context
 	return mmCalculate
 }
 
-// Return sets up results that will be returned by requestDeduplicator.Calculate
+// Return sets up results that will be returned by RequestDeduplicator.Calculate
 func (mmCalculate *mRequestDeduplicatorMockCalculate) Return(i1 int, err error) *RequestDeduplicatorMock {
 	if mmCalculate.mock.funcCalculate != nil {
 		mmCalculate.mock.t.Fatalf("RequestDeduplicatorMock.Calculate mock is already set by Set")
@@ -116,21 +116,21 @@ func (mmCalculate *mRequestDeduplicatorMockCalculate) Return(i1 int, err error) 
 	return mmCalculate.mock
 }
 
-//Set uses given function f to mock the requestDeduplicator.Calculate method
+//Set uses given function f to mock the RequestDeduplicator.Calculate method
 func (mmCalculate *mRequestDeduplicatorMockCalculate) Set(f func(ctx context.Context, input int) (i1 int, err error)) *RequestDeduplicatorMock {
 	if mmCalculate.defaultExpectation != nil {
-		mmCalculate.mock.t.Fatalf("Default expectation is already set for the requestDeduplicator.Calculate method")
+		mmCalculate.mock.t.Fatalf("Default expectation is already set for the RequestDeduplicator.Calculate method")
 	}
 
 	if len(mmCalculate.expectations) > 0 {
-		mmCalculate.mock.t.Fatalf("Some expectations are already set for the requestDeduplicator.Calculate method")
+		mmCalculate.mock.t.Fatalf("Some expectations are already set for the RequestDeduplicator.Calculate method")
 	}
 
 	mmCalculate.mock.funcCalculate = f
 	return mmCalculate.mock
 }
 
-// When sets expectation for the requestDeduplicator.Calculate which will trigger the result defined by the following
+// When sets expectation for the RequestDeduplicator.Calculate which will trigger the result defined by the following
 // Then helper
 func (mmCalculate *mRequestDeduplicatorMockCalculate) When(ctx context.Context, input int) *RequestDeduplicatorMockCalculateExpectation {
 	if mmCalculate.mock.funcCalculate != nil {
@@ -145,13 +145,13 @@ func (mmCalculate *mRequestDeduplicatorMockCalculate) When(ctx context.Context, 
 	return expectation
 }
 
-// Then sets up requestDeduplicator.Calculate return parameters for the expectation previously defined by the When method
+// Then sets up RequestDeduplicator.Calculate return parameters for the expectation previously defined by the When method
 func (e *RequestDeduplicatorMockCalculateExpectation) Then(i1 int, err error) *RequestDeduplicatorMock {
 	e.results = &RequestDeduplicatorMockCalculateResults{i1, err}
 	return e.mock
 }
 
-// Calculate implements containersmap.requestDeduplicator
+// Calculate implements containersmap.RequestDeduplicator
 func (mmCalculate *RequestDeduplicatorMock) Calculate(ctx context.Context, input int) (i1 int, err error) {
 	mm_atomic.AddUint64(&mmCalculate.beforeCalculateCounter, 1)
 	defer mm_atomic.AddUint64(&mmCalculate.afterCalculateCounter, 1)
@@ -266,7 +266,7 @@ type mRequestDeduplicatorMockClose struct {
 	expectations       []*RequestDeduplicatorMockCloseExpectation
 }
 
-// RequestDeduplicatorMockCloseExpectation specifies expectation struct of the requestDeduplicator.Close
+// RequestDeduplicatorMockCloseExpectation specifies expectation struct of the RequestDeduplicator.Close
 type RequestDeduplicatorMockCloseExpectation struct {
 	mock *RequestDeduplicatorMock
 
@@ -274,12 +274,12 @@ type RequestDeduplicatorMockCloseExpectation struct {
 	Counter uint64
 }
 
-// RequestDeduplicatorMockCloseResults contains results of the requestDeduplicator.Close
+// RequestDeduplicatorMockCloseResults contains results of the RequestDeduplicator.Close
 type RequestDeduplicatorMockCloseResults struct {
 	err error
 }
 
-// Expect sets up expected params for requestDeduplicator.Close
+// Expect sets up expected params for RequestDeduplicator.Close
 func (mmClose *mRequestDeduplicatorMockClose) Expect() *mRequestDeduplicatorMockClose {
 	if mmClose.mock.funcClose != nil {
 		mmClose.mock.t.Fatalf("RequestDeduplicatorMock.Close mock is already set by Set")
@@ -292,7 +292,7 @@ func (mmClose *mRequestDeduplicatorMockClose) Expect() *mRequestDeduplicatorMock
 	return mmClose
 }
 
-// Inspect accepts an inspector function that has same arguments as the requestDeduplicator.Close
+// Inspect accepts an inspector function that has same arguments as the RequestDeduplicator.Close
 func (mmClose *mRequestDeduplicatorMockClose) Inspect(f func()) *mRequestDeduplicatorMockClose {
 	if mmClose.mock.inspectFuncClose != nil {
 		mmClose.mock.t.Fatalf("Inspect function is already set for RequestDeduplicatorMock.Close")
@@ -303,7 +303,7 @@ func (mmClose *mRequestDeduplicatorMockClose) Inspect(f func()) *mRequestDedupli
 	return mmClose
 }
 
-// Return sets up results that will be returned by requestDeduplicator.Close
+// Return sets up results that will be returned by RequestDeduplicator.Close
 func (mmClose *mRequestDeduplicatorMockClose) Return(err error) *RequestDeduplicatorMock {
 	if mmClose.mock.funcClose != nil {
 		mmClose.mock.t.Fatalf("RequestDeduplicatorMock.Close mock is already set by Set")
@@ -316,21 +316,21 @@ func (mmClose *mRequestDeduplicatorMockClose) Return(err error) *RequestDeduplic
 	return mmClose.mock
 }
 
-//Set uses given function f to mock the requestDeduplicator.Close method
+//Set uses given function f to mock the RequestDeduplicator.Close method
 func (mmClose *mRequestDeduplicatorMockClose) Set(f func() (err error)) *RequestDeduplicatorMock {
 	if mmClose.defaultExpectation != nil {
-		mmClose.mock.t.Fatalf("Default expectation is already set for the requestDeduplicator.Close method")
+		mmClose.mock.t.Fatalf("Default expectation is already set for the RequestDeduplicator.Close method")
 	}
 
 	if len(mmClose.expectations) > 0 {
-		mmClose.mock.t.Fatalf("Some expectations are already set for the requestDeduplicator.Close method")
+		mmClose.mock.t.Fatalf("Some expectations are already set for the RequestDeduplicator.Close method")
 	}
 
 	mmClose.mock.funcClose = f
 	return mmClose.mock
 }
 
-// Close implements containersmap.requestDeduplicator
+// Close implements containersmap.RequestDeduplicator
 func (mmClose *RequestDeduplicatorMock) Close() (err error) {
 	mm_atomic.AddUint64(&mmClose.beforeCloseCounter, 1)
 	defer mm_atomic.AddUint64(&mmClose.afterCloseCounter, 1)
